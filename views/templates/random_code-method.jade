@@ -1,0 +1,38 @@
+script#random_code-method(type='text/x-template').
+    <div>
+        dexter<br>
+        <br>
+        {{user}}
+        <br>
+        ----------
+        <div v-if="user.methods.random_code.active">
+                <div class="divider"></div>
+                
+                <div v-if="user.methods.random_code">
+                    <div class="section" v-if="user.methods.random_code.transports.length>0">
+                        <h5>Transports</h5>
+                        <div class="card" v-if="user.methods.random_code.transports.indexOf('sms')>-1" style="max-width: 500px;margin: auto;margin-bottom: 15px;">
+                            <div class="card-content">
+                                <div class="row" style="margin-bottom: 0;">
+                                    <div class="col s2 m3">
+                                        <img src="https://image.flaticon.com/icons/svg/890/890231.svg">
+                                    </div>
+                                    
+                                </div>
+                            </div>
+                        </div>
+                        <div id="mail" class="card" v-if="user.methods.random_code.transports.indexOf('mail')>-1" style="max-width: 500px;margin: auto;margin-bottom: 15px;">
+                            <div class="card-content">
+                                <div class="row" style="margin-bottom: 0;">
+                                    <div class="col s2 m3">
+                                        <img src="https://image.flaticon.com/icons/svg/321/321817.svg">
+                                    </div>
+                                    
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            
+        </div>
+    </div>
