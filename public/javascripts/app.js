@@ -78,6 +78,73 @@ var RandomCodeMethod = Vue.extend({
         'activate': Function,
         'deactivate': Function,
     },
+
+    methods: {
+        saveTransport: function(transport) {
+            var new_transport = document.getElementById(transport + '-input').value;
+            var reg;
+            if (transport == 'sms') reg = new RegExp("^0[6-7]([-. ]?[0-9]{2}){4}$");
+            else reg = new RegExp(/^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/);
+            if (reg.test(new_transport)) {
+                var oldTransport = this.user.transports[transport];
+                this.user.transports[transport]= new_transport;
+                document.getElementById(transport + '-input').value = '';
+                $.ajax({
+                    method: 'PUT',
+                    url: '/api/transport/' + transport + '/' + new_transport,
+                    dataType: 'json',
+                    cache: false,
+                    success: function(data) {
+                        if (data.code != "Ok") {
+                            this.user.transports[transport]= oldTransport;
+                            document.getElementById(transport + '-input').value = oldTransport;
+                            Materialize.toast('Erreur interne, veuillez réessayer plus tard.', 3000, 'red darken-1');
+                        }else Materialize.toast('Transport vérifié', 3000, 'green darken-1');
+                    }.bind(this),
+                    error: function(xhr, status, err) {
+                        this.user.transports[transport]= oldTransport;
+                        document.getElementById(transport + '-input').value = oldTransport;
+                        Materialize.toast(err, 3000, 'red darken-1');
+                        console.error('/api/transport/' + transport + '/' + new_transport, status, err.toString());
+                    }.bind(this)
+                });
+            }else Materialize.toast('Format invalide.', 3000, 'red darken-1');
+        },
+        deleteTransport: function(transport) {
+            var oldTransport = this.user.transports[transport];
+            this.user.transports[transport]= null;
+            $.ajax({
+                method: 'DELETE',
+                url: '/api/transport/' + transport,
+                dataType: 'json',
+                cache: false,
+                success: function(data) {
+                    if (data.code != "Ok") this.user.transports[transport]= oldTransport;
+                }.bind(this),
+                error: function(xhr, status, err) {
+                    this.user.transports[transport]= oldTransport;
+                    Materialize.toast(err, 3000, 'red darken-1');
+                    console.error("/data/deactivate.json", status, err.toString());
+                }.bind(this)
+            });
+        },
+        testTransport: function(transport) {
+            $.ajax({
+                url: '/api/transport/' + transport + '/test',
+                dataType: 'json',
+                cache: false,
+                success: function(data) {
+                    if (data.code != "Ok") Materialize.toast(data.message, 3000, 'red darken-1');
+                    else Materialize.toast('Transport vérifié', 3000, 'green darken-1');
+                }.bind(this),
+                error: function(xhr, status, err) {
+                    Materialize.toast(err, 3000, 'red darken-1');
+                    console.error('/api/transport/' + transport + '/test', status, err.toString());
+                }.bind(this)
+            });
+        },
+    },
+
     template: '#random_code-method'
 });
 
@@ -87,7 +154,8 @@ var UserDashboard = Vue.extend({
         'methods': Object,
         'user': Object,
         'currentmethod': String,
-        'get_user': Function
+        'get_user': Function,
+        'show':Boolean,
     },
     data: function () {
         return {
@@ -139,7 +207,14 @@ var UserDashboard = Vue.extend({
                         this.user.methods.push.activationCode = data.activationCode;
                         this.user.methods.push.qrCode = data.qrCode;
                         this.user.methods.push.api_url = data.api_url;
+
+                        event.target.checked = true;
+                        this.show = true;
+                        console.log("activate:----------",data.activated);
+                        console.log(this.user.methods[event.target.name].active);
+                        console.log(data);
                         Materialize.toast('changed', 3000, 'green darken-1');
+                        
                     }else Materialize.toast('Erreur interne, veuillez réessayer plus tard.', 3000, 'red darken-1');
                 }.bind(this),
                 error: function (xhr, status, err) {
@@ -228,7 +303,19 @@ var UserDashboard = Vue.extend({
                         event.target.checked = true;
                         Materialize.toast('Erreur interne, veuillez réessayer plus tard.', 3000, 'red darken-1');
                     }
-                    else this.user.methods[event.target.name].active = false;
+                    else {
+                        this.user.methods[event.target.name].active = false;
+
+                        if(this.show){
+                            this.user.methods.push.activationCode = null;
+                            this.user.methods.push.qrCode = null;
+                            this.user.methods.push.api_url = null;
+                            this.show = false;
+                        }
+
+                        console.log("deactivate:----------");
+                        console.log(this.user.methods[event.target.name].active);
+                    }
                 }.bind(this),
                 error: function (xhr, status, err) {
                     event.target.checked = true;
@@ -274,72 +361,6 @@ var UserDashboard = Vue.extend({
                 }.bind(this)
             });
         },
-        saveTransport: function(transport) {
-            var new_transport = document.getElementById(transport + '-input').value;
-            var reg;
-            if (transport == 'sms') reg = new RegExp("^0[6-7]([-. ]?[0-9]{2}){4}$");
-            else reg = new RegExp(/^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/);
-            if (reg.test(new_transport)) {
-                var oldTransport = this.user.transports[transport];
-                this.user.transports[transport]= new_transport;
-                document.getElementById(transport + '-input').value = '';
-                $.ajax({
-                    method: 'PUT',
-                    url: '/api/transport/' + transport + '/' + new_transport,
-                    dataType: 'json',
-                    cache: false,
-                    success: function(data) {
-                        if (data.code != "Ok") {
-                            this.user.transports[transport]= oldTransport;
-                            document.getElementById(transport + '-input').value = oldTransport;
-                            Materialize.toast('Erreur interne, veuillez réessayer plus tard.', 3000, 'red darken-1');
-                        }
-                            Materialize.toast('Transport vérifié', 3000, 'green darken-1');
-                            /*$("#mail").load(location.href+" #mail","");
-                    }*/
-                    }.bind(this),
-                    error: function(xhr, status, err) {
-                        this.user.transports[transport]= oldTransport;
-                        document.getElementById(transport + '-input').value = oldTransport;
-                        Materialize.toast(err, 3000, 'red darken-1');
-                        console.error('/api/transport/' + transport + '/' + new_transport, status, err.toString());
-                    }.bind(this)
-                });
-            }else Materialize.toast('Format invalide.', 3000, 'red darken-1');
-        },
-        deleteTransport: function(transport) {
-            var oldTransport = this.user.transports[transport];
-            this.user.transports[transport]= null;
-            $.ajax({
-                method: 'DELETE',
-                url: '/api/transport/' + transport,
-                dataType: 'json',
-                cache: false,
-                success: function(data) {
-                    if (data.code != "Ok") this.user.transports[transport]= oldTransport;
-                }.bind(this),
-                error: function(xhr, status, err) {
-                    this.user.transports[transport]= oldTransport;
-                    Materialize.toast(err, 3000, 'red darken-1');
-                    console.error("/data/deactivate.json", status, err.toString());
-                }.bind(this)
-            });
-        },
-        testTransport: function(transport) {
-            $.ajax({
-                url: '/api/transport/' + transport + '/test',
-                dataType: 'json',
-                cache: false,
-                success: function(data) {
-                    if (data.code != "Ok") Materialize.toast(data.message, 3000, 'red darken-1');
-                    else Materialize.toast('Transport vérifié', 3000, 'green darken-1');
-                }.bind(this),
-                error: function(xhr, status, err) {
-                    Materialize.toast(err, 3000, 'red darken-1');
-                    console.error('/api/transport/' + transport + '/test', status, err.toString());
-                }.bind(this)
-            });
-        },
     }
 });
 
@@ -349,7 +370,7 @@ var UserView = Vue.extend({
         'user': Object,
         'methods': Object,
         'messages': Object,
-        "get_user": Function
+        "get_user": Function,
     },
     components: {
         "push": PushMethod,
@@ -381,11 +402,14 @@ var UserView = Vue.extend({
                 default:
                     /** **/
                     this.user.methods[method].active = true;
+                    this.show = false;
                     break;
             }
         },
         askPushActivation: function () {
             //ajax
+            console.log(this.show);
+
             $.ajax({
                 method: "PUT",
                 url: "/api/admin/" + this.user.uid + "/push/activate",
@@ -393,9 +417,14 @@ var UserView = Vue.extend({
                 cache: false,
                 success: function (data) {
                     if (data.code == "Ok") {
+
+                        //this.user.methods.push.active = false;
+                        this.show = true;
                         this.user.methods.push.activationCode = data.activationCode;
                         this.user.methods.push.qrCode = data.qrCode;
                         this.user.methods.push.api_url = data.api_url;
+
+                        console.log("activate push ---- : "+this.show);
                     }else Materialize.toast('Erreur interne, veuillez réessayer plus tard', 3000, 'red darken-1');
                 }.bind(this),
                 error: function (xhr, status, err) {
@@ -473,15 +502,29 @@ var UserView = Vue.extend({
             });
         },
         deactivate: function (method) {
+            console.log("im in deactivate --------");
             $.ajax({
                 method: "PUT",
                 url: "/api/admin/" + this.user.uid + "/" + method + "/deactivate",
                 dataType: 'json',
                 cache: false,
                 success: function (data) {
-                    if (data.code == "Ok") this.user.methods[method].active = false;
+                    if (data.code == "Ok") {
+                        this.user.methods[method].active = false;
+
+                        
+                        if(this.show){
+                            this.user.methods.push.activationCode = null;
+                            this.user.methods.push.qrCode = null;
+                            this.user.methods.push.api_url = null;
+                            this.show = false;
+                        }
+                        console.log("deactivate --- manager:"+this.show);
+                    }
                     else {
                         Materialize.toast('Erreur interne, veuillez réessayer plus tard', 3000, 'red darken-1');
+                        
+
                         this.user.methods[method].active = true;
                     }
                 }.bind(this),
@@ -536,7 +579,7 @@ var ManagerDashboard = Vue.extend({
     props: {
         'methods': Object,
         'messages': Object,
-        'user': Object
+        'show':Boolean,
     },
     components: {
         "user-view": UserView
@@ -619,12 +662,7 @@ var ManagerDashboard = Vue.extend({
         setUser: function (data) {
             this.user = {
                 uid: data.uid,
-                methods: {
-                    push: data.user.push,
-                    bypass: data.user.bypass,
-                    totp: data.user.totp,
-                    random_code: data.user.random_code
-                },
+                methods: data.user.methods,
                 transports: data.user.transports
             }
         }
